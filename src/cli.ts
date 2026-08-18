@@ -1,23 +1,27 @@
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from "node:process";
-import { loop } from "./agent.js"
-import { readlink } from "node:fs";
+import OpenAI from "openai";
+import type { Message, Role } from "./types.ts";
+import { callLLM } from "./agent.js";
+const client = new OpenAI({
+  apiKey: process.env.XXXX,
+  baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+});
 
-const rl = readline.createInterface({input, output});
+const rl = readline.createInterface({ input, output });
 
-export function echo(text: string): string {
-  const swapped = text
-    .replace(/我/g, "__ME__")
-    .replace(/你/g, "我")
-    .replace(/__ME__/g, "你");
-  return swapped.replace(/[。！？!?]+$/, "") + "？";
-}
+const message = (role: Role, content: string): Message => ({ role, content });
+const messages: Message[] = [];
+messages.push(message("system", "You are a helpful assistant."));
 
 while (true) {
-    const input = (await rl.question("你: ")).trim();
-    try {
-        console.log(`littleBuddy: ${await echo(input)}\n`);
-    } catch (e) {
-        console.error(`出错: ${(e as Error).message}\n`);   // 崩了也不退出
-    }
+  const usrMsg = (await rl.question("你: ")).trim();
+  messages.push(message("user", usrMsg))
+  try {
+    const msg =  await callLLM(client, messages);
+    console.log(`littleBuddy: ${msg.content}\n`);
+    messages.push(msg);
+  } catch (e) {
+    console.error(`出错: ${(e as Error).message}\n`);
+  }
 }
